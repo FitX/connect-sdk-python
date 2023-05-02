@@ -186,6 +186,42 @@ class Client:
         item_summary = self.deserialize(response.content, "list[SummaryItem]")[0]
         return self.get_item_by_id(item_summary.id, vault_id)
 
+    def get_item_by_title_simple_scim(self, title: str, vault_id: str, simple_scim_filer: str):
+        """Get a specific item by title
+        
+        Args:
+            title (str): The title of the item to be fetched
+            vault_id (str): The id of the vault in which to get the item from
+            simple_scim_filer (str): A simple scim filter like eq, sw, co
+
+        Raises:
+            FailedToRetrieveItemException: Thrown when a HTTP error is returned
+            from the 1Password Connect API
+
+        Returns:
+            Item object: The found item
+        """
+        filter_query = f'title "{simple_scim_filer}" "{title}"'
+        url = f"/v1/vaults/{vault_id}/items?filter={filter_query}"
+
+        response = self.build_request("GET", url)
+        try:
+            response.raise_for_status()
+        except HTTPError:
+            raise FailedToRetrieveItemException(
+                f"Unable to retrieve items. Received {response.status_code} \
+                     for {url} with message: {response.json().get('message')}"
+            )
+
+        if len(response.json()) != 1:
+            raise FailedToRetrieveItemException(
+                f"Found {len(response.json())} items in vault {vault_id} with \
+                    title {title}"
+            )
+
+        item_summary = self.deserialize(response.content, "list[SummaryItem]")[0]
+        return self.get_item_by_id(item_summary.id, vault_id)
+
     def get_items(self, vault_id: str):
         """Returns a list of item summaries for the specified vault
 
